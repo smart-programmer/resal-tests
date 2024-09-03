@@ -31,7 +31,6 @@ jobs:
     - name: Check for existing PR
       id: check_pr
       run: |
-        gh auth login --with-token <<< "$GITHUB_TOKEN"
         PR_NUMBER=$(gh pr list --base staging --head develop --state open --json number --jq '.[0].number')
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
 
