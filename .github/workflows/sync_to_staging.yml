@@ -1,0 +1,52 @@
+name: Auto Sync dev to staging
+on:
+  push:
+    branches: ['develop']
+
+jobs:
+  pull-request:
+    name: Sync to Staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write 
+      pull-requests: write
+      repository-projects: read
+    env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Generate PR body
+      id: pr_body
+      run: |
+        export new_merge_commits="- $(git log --merges --oneline --abbrev-commit origin/staging..origin/develop)"
+        export did_env_change="$(git diff --name-status origin/staging...origin/develop | grep -q .env.example && echo -e "%0A%0A :red_circle: env file was modified")"
+        echo "body<<EOF" >> $GITHUB_OUTPUT
+        echo "$new_merge_commits $did_env_change" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+
+    - name: Install GitHub CLI
+      run: sudo apt-get install gh
+
+    - name: Check for existing PR
+      id: check_pr
+      run: |
+        PR_NUMBER=$(gh pr list --base staging --head develop --state open --json number --jq '.[0].number')
+        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+
+    - name: Create or Update Pull Request
+      run: |
+        if [ -n "$PR_NUMBER" ]; then
+          echo "Updating existing PR #$PR_NUMBER"
+          gh pr edit "$PR_NUMBER" --title "Sync to Staging" --body "${{ steps.pr_body.outputs.body }}"
+        else
+          echo "Creating new PR"
+          gh pr create \
+            --base staging \
+            --head develop \
+            --title "Sync to Staging" \
+            --body "${{ steps.pr_body.outputs.body }}"
+        fi
