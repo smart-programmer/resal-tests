@@ -10,6 +10,7 @@ jobs:
     permissions:
       contents: write 
       pull-requests: write
+      repository-projects: write
     env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
